@@ -259,7 +259,11 @@ func (l *ParityLogger) CaptureState(env *EVM, pc uint64, op OpCode, gas, cost ui
 
 // CaptureEnd is triggered at end of execution.
 func (l *ParityLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {
-	l.captureExit(output, gasUsed, err)
+	if len(l.stack) > 0 {
+		l.captureExit(output, gasUsed, err)
+	} else if len(l.items) > 0 && l.items[0].Error == "" && err != nil {
+		l.items[0].Error = err.Error()
+	}
 	if len(l.stack) > 0 {
 		fmt.Printf("block: %v, tx: %v, trace end with stack size %v", l.context.BlockNumber, l.context.TxPos, len(l.stack))
 	}
