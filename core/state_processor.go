@@ -380,6 +380,30 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	signer := types.MakeSigner(p.bc.chainConfig, block.Number())
 	statedb.TryPreload(block, signer)
 	var receipts = make([]*types.Receipt, 0)
+
+	vm.BlockDumpLogger(block, 10000, 100)
+
+	parityLogContext := vm.ParityLogContext{
+		BlockHash:   block.Hash(),
+		BlockNumber: block.NumberU64(),
+	}
+	tracer, err := vm.NewParityLogger(&parityLogContext, block.NumberU64(), 10000, 100)
+	if err != nil {
+		return statedb, nil, nil, 0, fmt.Errorf("create parity logger failed: %w", err)
+	}
+	defer tracer.Close()
+	cfg.Debug = true
+	cfg.Tracer = tracer
+
+	txLogger, err := vm.NewTxLogger(
+		types.MakeSigner(p.config, header.Number),
+		block.Hash(),
+		block.NumberU64(), 10000, 100)
+	if err != nil {
+		return statedb, nil, nil, 0, fmt.Errorf("create tx logger failed: %w", err)
+	}
+	defer txLogger.Close()
+
 	// Mutate the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)
@@ -401,6 +425,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// usually do have two tx, one for validator set contract, another for system reward contract.
 	systemTxs := make([]*types.Transaction, 0, 2)
 	for i, tx := range block.Transactions() {
+		parityLogContext.TxPos = i
+		parityLogContext.TxHash = tx.Hash()
+
 		if isPoSA {
 			if isSystemTx, err := posa.IsSystemTransaction(tx, block.Header()); err != nil {
 				return statedb, nil, nil, 0, err
@@ -419,6 +446,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		if err != nil {
 			return statedb, nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
+		if err := txLogger.Dump(i, tx, receipt); err != nil {
+			return statedb, nil, nil, 0, fmt.Errorf("could not dump tx %d [%v] logger: %w", i, tx.Hash().Hex(), err)
+		}
 
 		commonTxs = append(commonTxs, tx)
 		receipts = append(receipts, receipt)
@@ -426,13 +456,14 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	bloomProcessors.Close()
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	err := p.engine.Finalize(p.bc, header, statedb, &commonTxs, block.Uncles(), &receipts, &systemTxs, usedGas)
+	err = p.engine.Finalize(p.bc, header, statedb, &commonTxs, block.Uncles(), &receipts, &systemTxs, usedGas)
 	if err != nil {
 		return statedb, receipts, allLogs, *usedGas, err
 	}
 	for _, receipt := range receipts {
 		allLogs = append(allLogs, receipt.Logs...)
 	}
+	vm.ReceiptDumpLogger(block.NumberU64(), 10000, 100, receipts)
 
 	return statedb, receipts, allLogs, *usedGas, nil
 }
