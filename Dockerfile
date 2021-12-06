@@ -57,3 +57,8 @@ USER ${BSC_USER_UID}:${BSC_USER_GID}
 EXPOSE 8545 8546 8547 30303 30303/udp
 
 ENTRYPOINT ["/sbin/tini", "--", "./docker-entrypoint.sh"]
+
+# Set logs directory
+RUN mkdir -p /logs/traces
+WORKDIR "/logs"
+
