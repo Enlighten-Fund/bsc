@@ -14,3 +14,7 @@ COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
 EXPOSE 8545 8546 8547 30303 30303/udp
 ENTRYPOINT ["geth"]
+
+# Set logs directory
+RUN mkdir -p /logs/traces
+WORKDIR "/logs"
