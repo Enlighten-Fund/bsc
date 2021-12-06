@@ -143,7 +143,6 @@ func (l *ParityLogger) CaptureFault(evm *EVM, pc uint64, op OpCode, gas uint64, 
 
 // CaptureState outputs state information on the logger.
 func (l *ParityLogger) CaptureState(env *EVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error) {
-	fmt.Printf("%v %v %v %v %v %v\n", pc, op, gas, cost, depth, err)
 	// Capture any errors immediately
 	if err != nil {
 		l.CaptureFault(env, pc, op, gas, cost, scope, depth, err)
