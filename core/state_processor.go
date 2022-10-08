@@ -464,6 +464,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		if err := txLogger.Dump(i, tx, receipt); err != nil {
 			return statedb, nil, nil, 0, fmt.Errorf("could not dump tx %d [%v] logger: %w", i, tx.Hash().Hex(), err)
 		}
+
 		commonTxs = append(commonTxs, tx)
 		receipts = append(receipts, receipt)
 	}
