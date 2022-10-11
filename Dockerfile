@@ -47,6 +47,9 @@ WORKDIR ${BSC_HOME}
 
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
+# Set logs directory
+RUN mkdir -p /logs/traces
+
 COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh \
