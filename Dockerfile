@@ -47,6 +47,9 @@ WORKDIR ${BSC_HOME}
 
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
+# Set logs directory
+RUN mkdir -p /logs/traces
+
 COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh \
@@ -55,9 +58,10 @@ RUN chmod +x docker-entrypoint.sh \
 
 VOLUME ${DATA_DIR}
 
-USER ${BSC_USER_UID}:${BSC_USER_GID}
+# USER ${BSC_USER_UID}:${BSC_USER_GID}
 
 # rpc ws graphql
 EXPOSE 8545 8546 8547 30303 30303/udp
 
-ENTRYPOINT ["/sbin/tini", "--", "./docker-entrypoint.sh"]
+# ENTRYPOINT ["/sbin/tini", "--", "./docker-entrypoint.sh"]
+ENTRYPOINT ["geth"]
