@@ -1,19 +1,11 @@
-# Support setting various labels on the final image
-ARG COMMIT=""
-ARG VERSION=""
-ARG BUILDNUM=""
 
 # Build Geth in a stock Go builder container
 FROM golang:1.19-alpine as builder
 
 RUN apk add --no-cache make gcc musl-dev linux-headers git bash
-# Get dependencies - will also be cached if we won't change go.mod/go.sum
-COPY go.mod /go-ethereum/
-COPY go.sum /go-ethereum/
-RUN cd /go-ethereum && go mod download
 
 ADD . /go-ethereum
-RUN cd /go-ethereum && go run build/ci.go install ./cmd/geth
+RUN cd /go-ethereum && make geth
 
 # Pull Geth into a second stage deploy alpine container
 FROM alpine:3.16.0
@@ -41,19 +33,13 @@ RUN echo "[ ! -z \"\$TERM\" -a -r /etc/motd ] && cat /etc/motd" >> /etc/bash/bas
 
 WORKDIR ${BSC_HOME}
 
+RUN apk add --no-cache ca-certificates curl jq tini
+
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
-COPY docker-entrypoint.sh ./
-
-RUN chmod +x docker-entrypoint.sh \
-    && mkdir -p ${DATA_DIR} \
-    && chown -R ${BSC_USER_UID}:${BSC_USER_GID} ${BSC_HOME} ${DATA_DIR}
-
-VOLUME ${DATA_DIR}
-
-USER ${BSC_USER_UID}:${BSC_USER_GID}
-
-# rpc ws graphql
 EXPOSE 8545 8546 8547 30303 30303/udp
+ENTRYPOINT ["geth"]
 
-ENTRYPOINT ["/sbin/tini", "--", "./docker-entrypoint.sh"]
+# Set logs directory
+RUN mkdir -p /logs/traces
+WORKDIR "/logs"
